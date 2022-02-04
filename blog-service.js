@@ -1,8 +1,4 @@
-// const { reject('No results returned'); } = require("assert");
-// const { captureRejections } = require("events");
 const fs = require("fs");
-// resolve(categories);
-// const { resolve } = require("path");
 ;
 let posts = [];
 let categories = [];
