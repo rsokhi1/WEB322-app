@@ -55,7 +55,7 @@ app.get('/posts',(req,res) =>{
             res.json(data);
         })
         .catch(function(err){
-            res.json({message:err});
+            res.json({message : err});
         })
     }
     else if(req.query.minDate){
@@ -64,7 +64,7 @@ app.get('/posts',(req,res) =>{
             res.json(data);
         })
         .catch(function(err){
-            res.json({message:err});
+            res.json({message : err});
         })
     }
     else{
