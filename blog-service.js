@@ -51,6 +51,7 @@ module.exports.getPublishedPosts = function(){
     });
 };
 
+
 module.exports.getCategories = function(){
     return new Promise((resolve,reject) =>{
         if(categories.length == 0){
@@ -111,7 +112,22 @@ module.exports.getPostById = function(id){
             reject("No results returned");
         }
         else{
-            resolve(postById);
+            resolve(postById[0]);
         }
+    });
+};
+
+module.exports.getPublishedPostsByCategory = function(){
+    return new Promise((resolve,reject)=>{
+        var post = [];
+        for(let i = 0;i<posts.length;i++){
+            if(posts[i].published == true && posts[i].category == category){
+                post.push(posts[i]);
+            }
+        }
+        if(post.length == 0){
+            reject("No results returned");
+        }
+        resolve(post);
     });
 };
