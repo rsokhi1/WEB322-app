@@ -23,11 +23,8 @@ const { redirect } = require('express/lib/response');
 const exphbs = require('express-handlebars');
 const stripJs = require('strip-js');
 const upload = multer();
-
-
-
-app.use(express.static('public'));
-app.use(express.urlencoded({extended: true}));
+const authData = require("./auth-service.js");
+const clientSessions = require("client-sessions");
 
 app.engine('.hbs', exphbs.engine({ 
     extname: '.hbs',
@@ -61,8 +58,41 @@ app.engine('.hbs', exphbs.engine({
 
 }));
 
+app.use(express.static('public'));
+app.use(express.urlencoded({extended: true}));
+
+
 
 app.set('view engine', '.hbs');
+
+cloudinary.config({
+    cloud_name: 'dulnoenrv',
+    api_key: '454579831321763',
+    api_secret: 'lRuVvu1NQ5I4-q-hQwMIgOXfKVA',
+    secure: true
+});
+
+
+app.use(clientSessions({
+    cookieName: "session",
+    secret: "web322_assignment6",
+    duration: 2 * 60 * 1000,
+    activeDuration: 1000 * 60
+}));
+
+function ensureLogin(req,res,next){
+    if(!req.session.user){
+        res.redirect("/login");
+    }else{
+        next();
+    }
+}
+
+app.use(function(req, res, next) {
+    res.locals.session = req.session;
+    next();
+  });
+  
 
 app.use(function(req,res,next){
     let route = req.path.substring(1);
@@ -79,61 +109,67 @@ app.get('/about',(req,res)=>{
     res.render(path.join(__dirname,"/views/about.hbs"));
 });
 
-app.get('/posts/add',(req,res) =>{
-
-    dataFile.getCategories()
-    .then(data => res.render("addPost",{categories: data}))
-    .catch(err =>{
-        res.render("addPost",{categories: []})
-    });
+app.get('/posts',ensureLogin,(req,res) =>{
+    if(req.query.category){
+        dataFile.getPostsByCategory(req.query.category)
+        .then((data) =>{
+            if(data.length > 0){
+                res.render("posts",{posts:data});
+            }
+            else{
+                res.render("posts",{ message: "no results" });
+            }
+        })
+        .catch(function(err){
+            res.render("posts", {message: "no results"});
+        })
+    }
+    else if(req.query.minDate){
+        dataFile.getPostsByMinDate(req.query.minDate)
+        .then((data)=>{
+            if(data.length > 0){
+                res.render("posts",{posts:data});
+            }
+            else{
+                res.render("posts",{ message: "no results" });
+            }
+        })
+        .catch(function(err){
+            res.render("posts", {message: "no results"});
+        })
+    }
+    else{
+        dataFile.getAllPosts().then((data)=>{
+            if(data.length > 0){
+                res.render("posts",{posts:data});
+            }
+            else{
+                res.render("posts",{ message: "no results" });
+            }
+        })
+        .catch((err)=>{
+            res.render("posts", {message: "no results"});
+        })
+    }
 });
 
-app.get('/categories/add',(req,res)=>{
-    res.render(path.join(__dirname,'/views/addCategory.hbs'));
-});
 
-app.post('/categories/add',(req,res)=>{
-    dataFile.addCategory(req.body)
-    .then(()=>{
-        res.redirect("/categories");
-    });
-});
 
-app.get('/categories/delete/:id',(req,res)=>{
-    dataFile.deleteCategoryById(req.params.id)
-    .then(()=>{
-        res.redirect("/categories");
+app.get('/categories',ensureLogin,(req,res) =>{
+    dataFile.getCategories().then((data)=>{
+        if(data.length> 0 ){
+            res.render("categories", {categories: data});
+        }
+        else{
+            res.render("categories", {message: "no results"});
+        }
     })
-    .catch(err => {
-        res.status(500).send("Unable to Remove Category / Category not found");
-    });
-});
-
-
-app.get('/posts/delete/:id',(req,res)=>{
-    dataFile.deletePostById(req.params.id)
-    .then(()=>{
-        res.redirect("/posts");
+    .catch((err)=>{
+        res.render("categories", {message: "no results"});
     })
-    .catch(err=>{
-        res.status(500).send("Unable to Remove Post / Post not found");
-    });
 });
 
-
-
-
-
-
-
-cloudinary.config({
-    cloud_name: 'dulnoenrv',
-    api_key: '454579831321763',
-    api_secret: 'lRuVvu1NQ5I4-q-hQwMIgOXfKVA',
-    secure: true
-});
-
-app.get('/blog', async (req, res) => {
+app.get('/blog',ensureLogin , async (req, res) => {
 
     // Declare an object to store properties for the view
     let viewData = {};
@@ -181,112 +217,6 @@ app.get('/blog', async (req, res) => {
 
 });
 
-app.get('/posts',(req,res) =>{
-    if(req.query.category){
-        dataFile.getPostsByCategory(req.query.category)
-        .then((data) =>{
-            if(data.length > 0){
-                res.render("posts",{posts:data});
-            }
-            else{
-                res.render("posts",{ message: "no results" });
-            }
-        })
-        .catch(function(err){
-            res.render("posts", {message: "no results"});
-        })
-    }
-    else if(req.query.minDate){
-        dataFile.getPostsByMinDate(req.query.minDate)
-        .then((data)=>{
-            if(data.length > 0){
-                res.render("posts",{posts:data});
-            }
-            else{
-                res.render("posts",{ message: "no results" });
-            }
-        })
-        .catch(function(err){
-            res.render("posts", {message: "no results"});
-        })
-    }
-    else{
-        dataFile.getAllPosts().then((data)=>{
-            if(data.length > 0){
-                res.render("posts",{posts:data});
-            }
-            else{
-                res.render("posts",{ message: "no results" });
-            }
-        })
-        .catch((err)=>{
-            res.render("posts", {message: "no results"});
-        })
-    }
-});
-
-app.get('/categories',(req,res) =>{
-    dataFile.getCategories().then((data)=>{
-        if(data.length> 0 ){
-            res.render("categories", {categories: data});
-        }
-        else{
-            res.render("categories", {message: "no results"});
-        }
-    })
-    .catch((err)=>{
-        res.render("categories", {message: "no results"});
-    })
-});
-
-app.post("/posts/add",upload.single("featureImage"),(req,res)=>{
-    let streamUpload = (req) => {
-        return new Promise((resolve, reject) => {
-            let stream = cloudinary.uploader.upload_stream(
-                (error, result) => {
-                if (result) {
-                    resolve(result);
-                } else {
-                    reject(error);
-                }
-                }
-            );
-    
-            streamifier.createReadStream(req.file.buffer).pipe(stream);
-        });
-    };
-    
-    async function upload(req) {
-        let result = await streamUpload(req);
-        // console.log(result);
-        return result;
-    }
-    
-    upload(req).then((uploaded)=>{
-        req.body.featureImage = uploaded.url;
-        dataFile.addPost(req.body)
-        .then(res.redirect('/posts'))
-        .catch(function(err){
-            res.json({message: err});
-        });
-    
-    });
-    
-});
-
-
-app.get('/post/:value',(req,res)=>{
-    dataFile.getPostById(req.params.value)
-    .then((data)=>{
-        // res.json(data);
-        res.render("post",{post: data})
-    })
-    .catch((err)=>{
-        // res.json({message : err});
-        res.render("post",{message: "no results"})
-    });
-})
-
 app.get('/blog/:id', async (req, res) => {
 
     let viewData = {};
@@ -328,9 +258,146 @@ app.get('/blog/:id', async (req, res) => {
     res.render("blog", {data: viewData})
 });
 
+app.get('/posts/add',ensureLogin,(req,res) =>{
+
+    dataFile.getCategories()
+    .then(data => res.render("addPost",{categories: data}))
+    .catch(err =>{
+        res.render("addPost",{categories: []})
+    });
+});
+
+app.post("/posts/add",ensureLogin,upload.single("featureImage"),(req,res)=>{
+    let streamUpload = (req) => {
+        return new Promise((resolve, reject) => {
+            let stream = cloudinary.uploader.upload_stream(
+                (error, result) => {
+                if (result) {
+                    resolve(result);
+                } else {
+                    reject(error);
+                }
+                }
+            );
+    
+            streamifier.createReadStream(req.file.buffer).pipe(stream);
+        });
+    };
+    
+    async function upload(req) {
+        let result = await streamUpload(req);
+        // console.log(result);
+        return result;
+    }
+    
+    upload(req).then((uploaded)=>{
+        req.body.featureImage = uploaded.url;
+        dataFile.addPost(req.body)
+        .then(res.redirect('/posts'))
+        .catch(function(err){
+            res.json({message: err});
+        });
+    
+    });
+    
+});
+
+app.get('/post/:value',ensureLogin,(req,res)=>{
+    dataFile.getPostById(req.params.value)
+    .then((data)=>{
+        // res.json(data);
+        res.render("post",{post: data})
+    })
+    .catch((err)=>{
+        // res.json({message : err});
+        res.render("post",{message: "no results"})
+    });
+})
+
+app.get("/posts/:category", ensureLogin, (req, res) => {
+    blogData.getAllPosts()
+    .then((data) => {
+        return res.json({data});
+    })
+    .catch((err) => {
+        return {"message": err.message};
+    })
+})
+
+app.get('/categories/add',ensureLogin,(req,res)=>{
+    res.render(path.join(__dirname,'/views/addCategory.hbs'));
+});
+
+app.post('/categories/add',ensureLogin,(req,res)=>{
+    dataFile.addCategory(req.body)
+    .then(()=>{
+        res.redirect("/categories");
+    });
+});
+
+app.get('/categories/delete/:id',ensureLogin,(req,res)=>{
+    dataFile.deleteCategoryById(req.params.id)
+    .then(()=>{
+        res.redirect("/categories");
+    })
+    .catch(err => {
+        res.status(500).send("Unable to Remove Category / Category not found");
+    });
+});
 
 
+app.get('/posts/delete/:id',ensureLogin,(req,res)=>{
+    dataFile.deletePostById(req.params.id)
+    .then(()=>{
+        res.redirect("/posts");
+    })
+    .catch(err=>{
+        res.status(500).send("Unable to Remove Post / Post not found");
+    });
+});
 
+app.get('/login',(req,res)=>{
+    res.render("login");
+});
+
+app.get('/register',(req,res)=>{
+    res.render("register");
+});
+
+app.post('/register',(req,res)=>{
+    authData.registerUser(req.body)
+    .then((user)=>{
+        res.render('register',{successMessae: "User created successfully"});
+    })
+    .catch((err)=>{
+        res.render('register',{errorMessage: err, userName: req.body.userName});
+    })
+});
+
+app.post('/login',(req,res)=>{
+    req.body.userAgent = req.get('User-Agent');
+    authData.checkUser(req.body)
+    .then((user)=>{
+        req.session.user ={
+            userName: user.userName,
+            email: user.email,
+            loginHistory: user.loginHistory
+        }
+        res.redirect('/posts');
+    })
+    .catch((err)=>{
+        res.render("login", {errorMessage: err, userName: req.body.userName});
+    })
+});
+
+app.get('/logout',(req,res)=>{
+    req.session.reset();
+    res.redirect("/");
+});
+
+app.get('/userHistory',(req,res)=>{
+    res.render("userHistory");
+});
 
 app.use(function(req,res){
     res.sendFile(path.join(__dirname,'./views/404.html'));
@@ -342,6 +409,7 @@ function onHttpStart() {
 }
 
 dataFile.initialize()
+    .then(authData.initialize)
     .then(function(){
         app.listen(HTTP_PORT,onHttpStart);
     })

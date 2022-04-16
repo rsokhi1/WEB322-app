@@ -51,6 +51,7 @@ module.exports.getAllPosts = function(){
     return new Promise((resolve,reject) =>{
         Post.findAll()
         .then((data) =>{
+            let err = 5/0;
             resolve(data);
         })
         .catch(()=>{
